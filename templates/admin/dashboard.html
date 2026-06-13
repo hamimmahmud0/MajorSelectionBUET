@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="flex gap-6">
+    <!-- Sidebar -->
+    <aside class="w-56 shrink-0">
+        <div class="bg-white rounded-xl shadow-md p-4 sticky top-6">
+            <h2 class="font-bold text-buet-blue mb-3 text-sm uppercase tracking-wide">Admin Panel</h2>
+            <nav class="space-y-1">
+                <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-lg bg-buet-blue text-white text-sm font-medium">📊 Dashboard</a>
+                <a href="{{ url_for('admin.supervisors') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">👤 Supervisors</a>
+                <a href="{{ url_for('admin.combos') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">📋 Combos</a>
+                <a href="{{ url_for('admin.merit') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">🏆 Merit List</a>
+                <a href="{{ url_for('admin.students') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">👥 Students</a>
+                <hr class="my-2 border-gray-200">
+                <a href="{{ url_for('admin.logout') }}" class="block px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm font-medium transition">🚪 Logout</a>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1">
+        <h1 class="text-2xl font-bold text-buet-blue mb-6">📊 Admin Dashboard</h1>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
+                <p class="text-3xl font-bold text-buet-blue">{{ stats.students }}</p>
+                <p class="text-gray-500 text-sm">Registered Students</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
+                <p class="text-3xl font-bold text-buet-blue">{{ stats.supervisors }}</p>
+                <p class="text-gray-500 text-sm">Supervisors</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
+                <p class="text-3xl font-bold text-buet-blue">{{ stats.combos }}</p>
+                <p class="text-gray-500 text-sm">Combo Seats</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-amber-500">
+                <p class="text-3xl font-bold text-buet-blue">{{ stats.allocated }}</p>
+                <p class="text-gray-500 text-sm">Allocated Students</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-5 border-l-4
+                {% if stats.can_run %}border-green-500{% else %}border-red-500{% endif %}">
+                <p class="text-3xl font-bold
+                    {% if stats.can_run %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ stats.submitted_prefs }}
+                </p>
+                <p class="text-gray-500 text-sm">Submitted Preferences</p>
+                <p class="text-xs text-gray-400 mt-1">
+                    {% if stats.can_run %}
+                        ✅ Threshold met ({{ stats.threshold }}+)
+                    {% else %}
+                        ❌ Need {{ stats.needed }} more (min {{ stats.threshold }})
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="font-bold text-lg text-buet-blue mb-4">⚡ Quick Actions</h2>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ url_for('admin.supervisors') }}"
+                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition">
+                    👤 Manage Supervisors
+                </a>
+                <a href="{{ url_for('admin.combos') }}"
+                   class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm transition">
+                    📋 Manage Combos
+                </a>
+                <a href="{{ url_for('admin.merit') }}"
+                   class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm transition">
+                    🏆 Upload Merit List
+                </a>
+
+                {% if stats.total_ranked > 0 %}
+                <form method="POST" action="{{ url_for('admin.generate_demo_prefs') }}" class="inline">
+                    <button type="submit"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm transition"
+                            onclick="return confirm('Generate/regenerate demo preferences for all students? This will overwrite existing preferences.')">
+                        🎲 Generate Demo Prefs
+                    </button>
+                </form>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('admin.trigger_allocation') }}" class="inline">
+                    <button type="submit"
+                            class="px-4 py-2 text-white rounded-lg text-sm transition
+                                {% if stats.cooldown_active %}bg-gray-500 cursor-not-allowed
+                                {% elif not stats.can_run %}bg-green-600 opacity-50 cursor-not-allowed
+                                {% else %}bg-green-600 hover:bg-green-700{% endif %}"
+                            {% if not stats.can_run %}disabled title="Need {{ stats.threshold }} submissions minimum"{% endif %}
+                            {% if stats.cooldown_active %}disabled title="Cooldown: {{ stats.cooldown_remaining }}s remaining"{% endif %}
+                            onclick="return confirm('Run allocation for all students?')">
+                        ▶️ Run Allocation
+                    </button>
+                    {% if stats.cooldown_active %}
+                    <span class="text-xs text-gray-500 ml-1">⏳ {{ stats.cooldown_remaining }}s</span>
+                    {% endif %}
+                </form>
+
+                <form method="POST" action="{{ url_for('admin.reset_all') }}" class="inline">
+                    <button type="submit"
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm transition"
+                            onclick="return confirm('⚠️ Delete ALL students, preferences, and allocations? This cannot be undone!')">
+                        🗑️ Reset All
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

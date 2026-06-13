@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+<div class="space-y-8">
+    <h1 class="text-2xl font-bold text-buet-blue">🎓 Student Dashboard</h1>
+
+    <!-- Registration & Submission Status -->
+    {% set student_has_submitted = combo_prefs|length > 0 %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+        <div class="bg-white rounded-xl shadow-md p-4 border-l-4
+            {% if student_has_submitted %}border-green-500{% else %}border-gray-400{% endif %}">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Your Status</p>
+            <p class="text-lg font-bold mt-1
+                {% if student_has_submitted %}text-green-600{% else %}text-gray-500{% endif %}">
+                {% if student_has_submitted %}✅ Submitted{% else %}❌ Not Submitted{% endif %}
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
+                {% if not student_has_submitted %}Submit your preferences above!{% endif %}
+            </p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Total Students</p>
+            <p class="text-2xl font-bold text-buet-blue mt-1">{{ sub_stats.total if sub_stats.total > 0 else '—' }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">registered in merit list</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 border-l-4
+            {% if sub_stats.can_run %}border-green-500{% else %}border-amber-500{% endif %}">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Completed</p>
+            <p class="text-2xl font-bold mt-1
+                {% if sub_stats.can_run %}text-green-600{% else %}text-amber-600{% endif %}">
+                {{ sub_stats.submitted if sub_stats.total > 0 else '—' }}
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">students submitted preferences</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 border-l-4
+            {% if sub_stats.can_run %}border-green-500{% else %}border-red-500{% endif %}">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Remaining</p>
+            <p class="text-2xl font-bold mt-1
+                {% if sub_stats.can_run %}text-green-600{% else %}text-red-500{% endif %}">
+                {{ sub_stats.remaining if sub_stats.total > 0 else '—' }}
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
+                {% if sub_stats.can_run %}
+                    ✅ Threshold reached ({{ sub_stats.threshold }}+)
+                {% elif sub_stats.total > 0 %}
+                    need {{ sub_stats.remaining }} more (min {{ sub_stats.threshold }})
+                {% else %}
+                    waiting for merit list
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Progress Bar (only when threshold not yet met) -->
+    {% if sub_stats.total > 0 and not sub_stats.can_run %}
+    <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-amber-500 -mt-2">
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Progress toward {{ sub_stats.threshold }} submissions needed</span>
+            <span>{{ sub_stats.submitted }}/{{ sub_stats.threshold }}</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3">
+            <div class="bg-amber-500 h-3 rounded-full transition-all"
+                 style="width: {{ (sub_stats.submitted / sub_stats.threshold * 100)|round }}%">
+            </div>
+        </div>
+        <p class="text-xs text-amber-600 mt-1">
+            {% if sub_stats.submitted == 0 %}
+                No submissions yet. Be the first to submit!
+            {% else %}
+                {{ sub_stats.remaining }} more students need to submit before results are shown.
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    {# ─── Color mapping for combo display ─── #}
+    {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
+    {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
+
+    <!-- Section A: Current Allocation -->
+    {% set alloc_major_clr = major_colors.get(allocation.major_code, 'gray') if allocation else 'gray' %}
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="font-bold text-lg text-buet-blue mb-4">📌 My Allocation</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <p class="text-sm text-gray-500 mb-1">Your Rank</p>
+                <p class="text-3xl font-bold text-buet-blue">
+                    {{ current_user.rank if current_user.rank else '—' }}
+                </p>
+            </div>
+            <div class="rounded-lg p-4 text-center border-l-4 border-{{ alloc_major_clr }}-500
+                        {% if allocation %}bg-{{ alloc_major_clr }}-50{% else %}bg-gray-50{% endif %}">
+                <p class="text-sm text-gray-500 mb-1">Assigned Combo</p>
+                <p class="text-2xl font-bold {% if allocation %}text-{{ alloc_major_clr }}-700{% else %}text-gray-400{% endif %}">
+                    {% if allocation %}
+                        <span class="text-3xl">{{ allocation.major_code }}{{ allocation.minor_code }}</span>
+                    {% else %}
+                        <span class="text-gray-400">Not assigned yet</span>
+                    {% endif %}
+                </p>
+                {% if allocation %}
+                <p class="text-xs text-{{ alloc_major_clr }}-500 mt-1">{{ major_names[allocation.major_code] }} → {{ major_names[allocation.minor_code] }}</p>
+                {% endif %}
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <p class="text-sm text-gray-500 mb-1">Assigned Supervisor</p>
+                <p class="text-xl font-bold text-buet-blue">
+                    {% if allocation and allocation.supervisor %}
+                        {{ allocation.supervisor.name }}
+                    {% else %}
+                        <span class="text-gray-400 text-base">Not assigned yet</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section B: Preference Selection -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="font-bold text-lg text-buet-blue mb-4">⚙️ My Preferences</h2>
+
+        <!-- Combo Priority -->
+        <div class="mb-8">
+            <h3 class="font-semibold text-gray-700 mb-3">📋 Combo Priority List</h3>
+            <p class="text-xs text-gray-400 mb-3">Drag the combos to reorder them by priority (top = highest priority). Unranked combos get equal-lowest priority automatically.</p>
+
+            {# Color mapping: each major gets a base color; each minor gets a shade #}
+            {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
+            {% set minor_shades = {'S': '400', 'T': '500', 'E': '600', 'G': '700'} %}
+            {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
+
+            <div id="combo-preference-list" class="space-y-1">
+                {% set pref_map = {} %}
+                {% for p in combo_prefs %}
+                    {% set _ = pref_map.update({(p.major_code ~ p.minor_code): p.priority}) %}
+                {% endfor %}
+
+                {% for c in combos %}
+                {% set key = c.major_code ~ c.minor_code %}
+                {% set saved_priority = pref_map.get(key, 0) %}
+                {% set major_clr = major_colors[c.major_code] %}
+                {% set minor_shade = minor_shades[c.minor_code] %}
+                {% set bg_clr = major_clr ~ '-50' %}
+                {% set border_clr = major_clr ~ '-400' %}
+                {% set badge_clr = major_clr ~ '-' ~ minor_shade %}
+                {% set text_clr = major_clr ~ '-700' %}
+                {% set minor_dot_clr = major_clr ~ '-' ~ minor_shade %}
+                {% set major_name = major_names[c.major_code] %}
+                {% set minor_name = major_names[c.minor_code] %}
+                <div class="combo-row flex items-center gap-3 rounded-lg px-4 py-3 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-{{ bg_clr }} border-{{ border_clr }}"
+                     draggable="true"
+                     data-major="{{ c.major_code }}"
+                     data-minor="{{ c.minor_code }}"
+                     data-default-priority="{{ saved_priority }}">
+                    <span class="text-{{ text_clr }} text-lg font-bold drag-handle opacity-60">⠿</span>
+                    <span class="priority-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-{{ badge_clr }}">
+                        {{ loop.index }}
+                    </span>
+                    <span class="font-mono font-bold w-14 text-{{ text_clr }}">{{ c.major_code }}{{ c.minor_code }}</span>
+                    <span class="text-xs flex-1 text-{{ text_clr }}">
+                        {{ major_name }} <span class="text-gray-400">→</span> {{ minor_name }}
+                    </span>
+                    <span class="w-3 h-3 rounded-full inline-block bg-{{ minor_dot_clr }} shrink-0"></span>
+                    <span class="text-xs text-gray-400 italic">drag</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button onclick="saveComboPreferences()"
+                    class="mt-4 px-5 py-2 bg-buet-blue text-white rounded-lg hover:bg-blue-900 transition text-sm font-medium">
+                💾 Save Combo Preferences
+            </button>
+            <span id="combo-save-status" class="ml-3 text-sm text-green-600 hidden">✓ Saved!</span>
+        </div>
+
+        <!-- Supervisor Priority per Major -->
+        <div>
+            <h3 class="font-semibold text-gray-700 mb-3">👤 Supervisor Priority per Major</h3>
+            <p class="text-xs text-gray-400 mb-3">Click a tab to select a major, then drag supervisors to rank them (top = highest priority).</p>
+
+            {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
+            {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
+            {% set major_order = ['S', 'T', 'E', 'G'] %}
+
+            {# ─── Tab Bar ─── #}
+            <div class="flex gap-1 mb-4 border-b border-gray-200 pb-1" id="supervisor-tabs">
+                {% for m in major_order %}
+                {% set mclr = major_colors[m] %}
+                {% set active_bg = mclr ~ '-500' %}
+                {% set active_text = 'white' %}
+                {% set inactive_bg = 'gray-100' %}
+                {% set inactive_text = 'gray-600' %}
+                <button class="sup-tab px-5 py-2 rounded-t-lg text-sm font-medium transition cursor-pointer
+                               bg-{{ inactive_bg }} text-{{ inactive_text }} hover:bg-{{ mclr }}-100"
+                        data-major="{{ m }}"
+                        onclick="switchSupervisorTab('{{ m }}')">
+                    {{ m }} — {{ major_names[m] }}
+                </button>
+                {% endfor %}
+            </div>
+
+            {# ─── Supervisor Lists (one per major, only active tab visible) ─── #}
+            {% for m in major_order %}
+            {% set sups = supervisors_by_major.get(m, []) %}
+            {% set mclr = major_colors[m] %}
+            {% set sup_bg = mclr ~ '-50' %}
+            {% set sup_border = mclr ~ '-200' %}
+            {% set sup_heading = mclr ~ '-700' %}
+            <div class="sup-panel" id="sup-panel-{{ m }}"
+                 data-major="{{ m }}"
+                 style="display: {% if loop.first %}block{% else %}none{% endif %};">
+
+                {% if sups %}
+                <div class="p-4 border rounded-lg bg-{{ sup_bg }} border-{{ sup_border }}">
+                    <div class="supervisor-list space-y-1" id="supervisor-list-{{ m }}">
+                        {% set pref_sup_ids = sup_prefs | selectattr('major_code', 'equalto', m) | map(attribute='supervisor_id') | list %}
+                        {% for sup in sups %}
+                        {% set saved_priority = namespace(found=false) %}
+                        {% for p in sup_prefs %}
+                            {% if p.supervisor_id == sup.id and p.major_code == m %}
+                                {% set saved_priority = p.priority %}
+                            {% endif %}
+                        {% endfor %}
+                        <div class="supervisor-row flex items-center gap-3 rounded-lg px-4 py-2.5 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-white border-{{ mclr }}-400"
+                             draggable="true"
+                             data-supervisor-id="{{ sup.id }}"
+                             data-major="{{ m }}">
+                            <span class="text-{{ sup_heading }} text-lg font-bold drag-handle opacity-60">⠿</span>
+                            <span class="sup-priority-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-{{ mclr }}-500">
+                                {{ loop.index }}
+                            </span>
+                            <span class="font-medium text-{{ sup_heading }} w-44">{{ sup.name }}</span>
+                            <span class="text-xs text-gray-400">({{ sup.seats }} seats)</span>
+                            <span class="text-xs text-gray-400 italic ml-auto">drag</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <button onclick="saveSupervisorPreferences('{{ m }}')"
+                            class="mt-3 px-4 py-1.5 text-white rounded-lg hover:opacity-90 transition text-xs font-medium bg-{{ mclr }}-600">
+                        💾 Save ({{ m }})
+                    </button>
+                    <span id="sup-save-status-{{ m }}" class="ml-3 text-sm text-green-600 hidden">✓ Saved!</span>
+                </div>
+                {% else %}
+                <p class="text-gray-400 text-sm py-4">No supervisors for {{ major_names[m] }} yet. Ask admin to add them.</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Section C: Results Table -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="font-bold text-lg text-buet-blue mb-4">📊 Allocation Results</h2>
+
+        <!-- Search -->
+        <div class="flex flex-wrap gap-3 mb-4">
+            <div class="relative flex-1 min-w-[200px]">
+                <input type="text" id="search-input"
+                       placeholder="Search by Student ID or Combo..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-buet-blue focus:border-buet-blue outline-none text-sm">
+                <div id="search-suggestions" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 shadow-lg z-10 hidden"></div>
+            </div>
+            <select id="search-filter"
+                    class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-buet-blue outline-none text-sm">
+                <option value="student_id">Student ID</option>
+                <option value="combo">Combo</option>
+            </select>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="results-table">
+                <thead class="bg-buet-blue text-white">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Student ID</th>
+                        <th class="px-4 py-3 text-center">Rank</th>
+                        <th class="px-4 py-3 text-center">Combo</th>
+                        <th class="px-4 py-3 text-left">Supervisor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="results-body">
+                    {% for r in all_allocations %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2.5 font-mono">{{ r.student_id }}</td>
+                        <td class="px-4 py-2.5 text-center font-medium">{{ r.rank or '—' }}</td>
+                        <td class="px-4 py-2.5 text-center">
+                            <span class="font-mono font-bold text-buet-blue">{{ r.major_code }}{{ r.minor_code }}</span>
+                        </td>
+                        <td class="px-4 py-2.5">{{ r.supervisor_name or 'Not assigned' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-400">No allocations yet. Run allocation first.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

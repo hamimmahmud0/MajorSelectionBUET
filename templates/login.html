@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Student Login{% endblock %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+            <div class="text-4xl mb-2">🎓</div>
+            <h1 class="text-2xl font-bold text-buet-blue">Student Login</h1>
+            <p class="text-gray-500 text-sm mt-1">
+                {% if is_existing %}
+                    Enter your password for <strong>{{ student_id }}</strong>
+                {% elif is_new %}
+                    Create a password for <strong>{{ student_id }}</strong>
+                {% else %}
+                    Enter your Student ID to continue
+                {% endif %}
+            </p>
+        </div>
+
+        <form method="POST" class="space-y-5">
+            <!-- Student ID (always submitted) -->
+            <div>
+                <label for="student_id" class="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
+                <input type="text" id="student_id" name="student_id"
+                       value="{{ student_id or '' }}"
+                       placeholder="e.g. 2104065"
+                       maxlength="7"
+                       {% if is_existing or is_new %}readonly{% endif %}
+                       class="w-full px-4 py-2.5 border rounded-lg outline-none transition
+                              {% if is_existing or is_new %}
+                                  bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed
+                              {% else %}
+                                  border-gray-300 focus:ring-2 focus:ring-buet-blue focus:border-buet-blue
+                              {% endif %}">
+                {% if not is_existing and not is_new %}
+                <p class="text-xs text-gray-400 mt-1">Format: <code>YYYYRRR</code> — 7 digits starting with <strong>{{ config.STUDENT_ID_PREFIX }}</strong> (e.g., 2104065)</p>
+                {% endif %}
+            </div>
+
+            <!-- Password field (step 2 only) -->
+            {% if is_existing or is_new %}
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                    {% if is_new %}Create Password{% else %}Password{% endif %}
+                </label>
+                <input type="password" id="password" name="password"
+                       placeholder="{% if is_new %}Choose a password{% else %}Enter your password{% endif %}"
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-buet-blue focus:border-buet-blue outline-none transition"
+                       required autofocus>
+                {% if is_new %}
+                <p class="text-xs text-amber-600 mt-1">
+                    It seems you are first time here. <strong>Save it somewhere safe.</strong>
+                    You will need it every time you log in.
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Submit button -->
+            <button type="submit"
+                    class="w-full bg-buet-blue text-white py-2.5 rounded-lg font-medium hover:bg-blue-900 transition shadow-md">
+                {% if is_new %}
+                    Create Account & Login
+                {% elif is_existing %}
+                    Login
+                {% else %}
+                    Next →
+                {% endif %}
+            </button>
+
+            <!-- Back link (step 2 only) -->
+            {% if is_existing or is_new %}
+            <div class="text-center">
+                <a href="{{ url_for('auth.login') }}"
+                   class="text-sm text-gray-500 hover:text-buet-blue transition">
+                    ← Use a different Student ID
+                </a>
+            </div>
+            {% endif %}
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-gray-100 text-center">
+            <a href="{{ url_for('admin.login') }}" class="text-sm text-gray-500 hover:text-buet-blue transition">
+                🔐 Admin Login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

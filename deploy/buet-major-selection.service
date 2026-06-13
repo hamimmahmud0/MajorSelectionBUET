@@ -1,0 +1,38 @@
+[Unit]
+Description=BUET Civil Major Selection System
+After=network.target
+
+[Service]
+Type=simple
+
+# ─── User to run as ───
+User=hamim-mahmud
+Group=hamim-mahmud
+
+# ─── Working directory ───
+WorkingDirectory=/home/hamim-mahmud/Workspace/MajorSelectionBUET
+
+# ─── Environment ───
+Environment=PRODUCTION=true
+Environment=FLASK_ENV=production
+Environment=DATABASE_URI=sqlite:////home/hamim-mahmud/Workspace/MajorSelectionBUET/instance/major_selection.db
+Environment=PYTHONUNBUFFERED=1
+
+# ─── Path to Python + Gunicorn ───
+ExecStart=/home/hamim-mahmud/.miniconda3/bin/gunicorn wsgi:app -c gunicorn_config.py
+
+# ─── Restart policy ───
+Restart=always
+RestartSec=5
+
+# ─── Security ───
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=false
+PrivateTmp=true
+
+# ─── File limits ───
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

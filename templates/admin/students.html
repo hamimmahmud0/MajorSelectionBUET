@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Manage Students{% endblock %}
+{% block content %}
+<div class="flex gap-6">
+    <aside class="w-56 shrink-0">
+        <div class="bg-white rounded-xl shadow-md p-4 sticky top-6">
+            <h2 class="font-bold text-buet-blue mb-3 text-sm uppercase tracking-wide">Admin Panel</h2>
+            <nav class="space-y-1">
+                <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">📊 Dashboard</a>
+                <a href="{{ url_for('admin.supervisors') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">👤 Supervisors</a>
+                <a href="{{ url_for('admin.combos') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">📋 Combos</a>
+                <a href="{{ url_for('admin.merit') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">🏆 Merit List</a>
+                <a href="{{ url_for('admin.students') }}" class="block px-3 py-2 rounded-lg bg-buet-blue text-white text-sm font-medium">👥 Students</a>
+                <hr class="my-2 border-gray-200">
+                <a href="{{ url_for('admin.logout') }}" class="block px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm font-medium transition">🚪 Logout</a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1">
+        <h1 class="text-2xl font-bold text-buet-blue mb-6">👥 All Registered Students</h1>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-buet-blue text-white">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Student ID</th>
+                        <th class="px-4 py-3 text-center">Rank</th>
+                        <th class="px-4 py-3 text-center">Registered</th>
+                        <th class="px-4 py-3 text-center">Reset Password</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for s in students %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-mono">{{ s.id }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if s.rank %}
+                                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">{{ s.rank }}</span>
+                            {% else %}
+                                <span class="text-gray-400 text-xs">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center text-xs text-gray-500">
+                            {{ s.created_at.strftime('%Y-%m-%d') if s.created_at else '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <form method="POST" action="{{ url_for('admin.reset_student_password') }}"
+                                  class="flex gap-2 justify-center items-center"
+                                  onsubmit="return confirm('Reset password for {{ s.id }}?')">
+                                <input type="hidden" name="student_id" value="{{ s.id }}">
+                                <input type="text" name="new_password" placeholder="New password" required
+                                       class="px-2 py-1 border border-gray-300 rounded text-xs w-28 focus:ring-1 focus:ring-buet-blue outline-none">
+                                <button type="submit"
+                                        class="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 text-xs transition">Reset</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-gray-400">No students registered yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}

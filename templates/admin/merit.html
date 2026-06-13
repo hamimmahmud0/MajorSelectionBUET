@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Merit List{% endblock %}
+{% block content %}
+<div class="flex gap-6">
+    <aside class="w-56 shrink-0">
+        <div class="bg-white rounded-xl shadow-md p-4 sticky top-6">
+            <h2 class="font-bold text-buet-blue mb-3 text-sm uppercase tracking-wide">Admin Panel</h2>
+            <nav class="space-y-1">
+                <a href="{{ url_for('admin.dashboard') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">📊 Dashboard</a>
+                <a href="{{ url_for('admin.supervisors') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">👤 Supervisors</a>
+                <a href="{{ url_for('admin.combos') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">📋 Combos</a>
+                <a href="{{ url_for('admin.merit') }}" class="block px-3 py-2 rounded-lg bg-buet-blue text-white text-sm font-medium">🏆 Merit List</a>
+                <a href="{{ url_for('admin.students') }}" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 text-sm font-medium transition">👥 Students</a>
+                <hr class="my-2 border-gray-200">
+                <a href="{{ url_for('admin.logout') }}" class="block px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 text-sm font-medium transition">🚪 Logout</a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-buet-blue">🏆 Merit List Management (List Three)</h1>
+            <a href="{{ url_for('admin.export_merit') }}"
+               class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm transition">⬇️ Export CSV</a>
+        </div>
+
+        <!-- CSV Upload -->
+        <div class="bg-white rounded-xl shadow-md p-5 mb-6">
+            <h2 class="font-semibold text-buet-blue mb-3">📥 Upload Merit List CSV</h2>
+            <p class="text-xs text-gray-500 mb-3">Format: <code>rank,student_id</code> (one per line). New students will be auto-created with default password (same as Student ID).</p>
+            <form method="POST" enctype="multipart/form-data" class="flex gap-3 items-end">
+                <input type="hidden" name="action" value="upload_csv">
+                <div>
+                    <input type="file" name="csv_file" accept=".csv" required
+                           class="block text-sm text-gray-500 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-buet-blue file:text-white hover:file:bg-blue-900">
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                        onclick="return confirm('This will replace all existing ranks. Continue?')">Upload & Replace</button>
+            </form>
+        </div>
+
+        <!-- Add Single Student -->
+        <div class="bg-white rounded-xl shadow-md p-5 mb-6">
+            <h2 class="font-semibold text-buet-blue mb-3">Add Student to Merit List</h2>
+            <form method="POST" class="flex flex-wrap gap-3 items-end">
+                <input type="hidden" name="action" value="add">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Student ID</label>
+                    <input type="text" name="student_id" placeholder="e.g. 2104065" required
+                           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-buet-blue outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Rank</label>
+                    <input type="number" name="rank" min="1" required
+                           class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-buet-blue outline-none w-20">
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 bg-buet-blue text-white rounded-lg hover:bg-blue-900 transition text-sm">Add</button>
+            </form>
+        </div>
+
+        <!-- Merit Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-buet-blue text-white">
+                    <tr>
+                        <th class="px-4 py-3 text-center w-16">Rank</th>
+                        <th class="px-4 py-3 text-left">Student ID</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for s in students %}
+                    {% if s.rank %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-center font-bold text-buet-blue">{{ s.rank }}</td>
+                        <td class="px-4 py-3 font-mono">{{ s.id }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <form method="POST" class="inline" onsubmit="return confirm('Remove {{ s.id }} from merit list?')">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="student_id" value="{{ s.id }}">
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs font-medium">🗑️ Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-8 text-center text-gray-400">No merit list uploaded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Clear All -->
+        {% if students|selectattr('rank')|list %}
+        <div class="mt-4 text-right">
+            <form method="POST" onsubmit="return confirm('Clear ALL ranks? This cannot be undone.')">
+                <input type="hidden" name="action" value="clear_all">
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm">🗑️ Clear All Ranks</button>
+            </form>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

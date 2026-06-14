@@ -2,7 +2,7 @@ import csv
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, Admin, Student, Supervisor, ComboSeat, StudentComboPref, StudentSupervisorPref, Allocation
+from models import db, Admin, Student, Supervisor, ComboSeat, StudentPref, Allocation
 from services.allocator import try_run_allocation, get_submission_stats
 
 admin_bp = Blueprint('admin', __name__)
@@ -354,66 +354,55 @@ def trigger_allocation():
 def generate_demo_prefs():
     """Generate demo combo & supervisor preferences for all ranked students."""
     try:
-        from models import StudentComboPref, StudentSupervisorPref
+        from models import StudentPref
         import random
         random.seed(42)
 
         students = Student.query.filter(Student.rank.isnot(None)).order_by(Student.rank).all()
         combos = list(ComboSeat.query.all())
-        supervisors = list(Supervisor.query.all())
-        supervisors_by_major = {}
-        for sup in supervisors:
-            supervisors_by_major.setdefault(sup.major_code, []).append(sup)
+        all_supervisors = list(Supervisor.query.all())
 
-        if not combos:
-            flash('No combos found. Import combos first.', 'error')
+        if not combos or not all_supervisors:
+            flash('Combos and supervisors required. Import them first.', 'error')
             return redirect(url_for('admin.dashboard'))
 
         # Clear existing
-        StudentComboPref.query.delete()
-        StudentSupervisorPref.query.delete()
+        StudentPref.query.delete()
         db.session.commit()
 
         SKIP_COUNT = 15
         total = len(students)
         skip_indices = set(random.sample(range(total), min(SKIP_COUNT, total)))
         submitted_count = 0
-
-        COMBO_RANK_WEIGHTS = [(12, 0.20), (10, 0.15), (8, 0.20), (6, 0.20), (4, 0.15), (3, 0.10)]
+        PREF_COUNT_WEIGHTS = [20, 15, 15, 12, 10, 8, 6, 4, 3]  # number of pairs each student ranks
 
         for idx, student in enumerate(students):
             if idx in skip_indices:
                 continue
 
-            how_many = random.choices(
-                [w[0] for w in COMBO_RANK_WEIGHTS],
-                weights=[w[1] for w in COMBO_RANK_WEIGHTS],
-                k=1
-            )[0]
-            how_many = min(how_many, len(combos))
-            ranked_combos = random.sample(combos, how_many)
+            # Generate a random number of preference pairs for this student
+            num_prefs = random.choices(PREF_COUNT_WEIGHTS, k=1)[0]
+            num_prefs = min(num_prefs, len(combos) * len(all_supervisors))
 
-            for priority, combo in enumerate(ranked_combos, 1):
-                db.session.add(StudentComboPref(
-                    student_id=student.id,
-                    major_code=combo.major_code,
-                    minor_code=combo.minor_code,
-                    priority=priority,
-                ))
-
-            majors_used = set(c.major_code for c in ranked_combos)
-            for major_code in majors_used:
-                sups = supervisors_by_major.get(major_code, [])
-                if not sups:
+            # Create pairs by randomly picking combos and supervisors that match the combo's major
+            prefs_set = set()
+            for _ in range(num_prefs * 3):  # generate enough to fill
+                combo = random.choice(combos)
+                # Pick a supervisor from the combo's major
+                matching_sups = [s for s in all_supervisors if s.major_code == combo.major_code]
+                if not matching_sups:
                     continue
-                rank_count = random.randint(1, len(sups))
-                for priority, sup in enumerate(random.sample(sups, rank_count), 1):
-                    db.session.add(StudentSupervisorPref(
-                        student_id=student.id,
-                        supervisor_id=sup.id,
-                        major_code=major_code,
-                        priority=priority,
-                    ))
+                sup = random.choice(matching_sups)
+                key = (combo.major_code, combo.minor_code, sup.id)
+                prefs_set.add(key)
+                if len(prefs_set) >= num_prefs:
+                    break
+
+            for priority, (major, minor, sup_id) in enumerate(prefs_set, 1):
+                db.session.add(StudentPref(
+                    student_id=student.id, major_code=major,
+                    minor_code=minor, supervisor_id=sup_id, priority=priority,
+                ))
 
             submitted_count += 1
 
@@ -435,8 +424,7 @@ def reset_all():
     """Delete all student accounts (with preferences, allocations, and ranks)."""
     try:
         # Delete in order: child records first, then students
-        StudentComboPref.query.delete()
-        StudentSupervisorPref.query.delete()
+        StudentPref.query.delete()
         Allocation.query.delete()
         Student.query.delete()
         db.session.commit()

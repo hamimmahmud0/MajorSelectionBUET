@@ -29,14 +29,14 @@
             </a>
             <div class="flex items-center gap-4 text-sm">
                 {% if current_user.is_authenticated %}
-                    {% if current_user.rank is defined and current_user.rank is not none %}
-                        <span class="text-buet-gold">Student: {{ current_user.id }}</span>
-                        <a href="{{ url_for('dashboard.index') }}" class="hover:text-buet-gold transition">Dashboard</a>
-                        <a href="{{ url_for('auth.logout') }}" class="hover:text-buet-gold transition">Logout</a>
-                    {% elif current_user.username is defined %}
+                    {% if current_user.username is defined %}
                         <span class="text-buet-gold">Admin: {{ current_user.username }}</span>
                         <a href="{{ url_for('admin.dashboard') }}" class="hover:text-buet-gold transition">Panel</a>
                         <a href="{{ url_for('admin.logout') }}" class="hover:text-buet-gold transition">Logout</a>
+                    {% else %}
+                        <span class="text-buet-gold">Student: {{ current_user.id }}</span>
+                        <a href="{{ url_for('dashboard.index') }}" class="hover:text-buet-gold transition">Dashboard</a>
+                        <a href="{{ url_for('auth.logout') }}" class="hover:text-buet-gold transition">Logout</a>
                     {% endif %}
                 {% else %}
                     <a href="{{ url_for('auth.login') }}" class="hover:text-buet-gold transition">Student Login</a>

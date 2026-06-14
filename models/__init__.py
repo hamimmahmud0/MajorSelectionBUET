@@ -74,6 +74,24 @@ class StudentSupervisorPref(db.Model):
     )
 
 
+class StudentPref(db.Model):
+    """Combined preference: a student ranks a (combo + supervisor) pair."""
+    __tablename__ = 'student_pref'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(20), db.ForeignKey('student.id'), nullable=False)
+    major_code = db.Column(db.String(1), nullable=False)
+    minor_code = db.Column(db.String(1), nullable=False)
+    supervisor_id = db.Column(db.Integer, db.ForeignKey('supervisor.id'), nullable=False)
+    priority = db.Column(db.Integer, nullable=False)
+
+    supervisor = db.relationship('Supervisor', backref='student_prefs')
+
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'major_code', 'minor_code', 'supervisor_id',
+                            name='uq_student_pref'),
+    )
+
+
 class Allocation(db.Model):
     __tablename__ = 'allocation'
     id = db.Column(db.Integer, primary_key=True)

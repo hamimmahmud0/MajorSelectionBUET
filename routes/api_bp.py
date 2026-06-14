@@ -1,68 +1,36 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from models import db, Student, Supervisor, ComboSeat, StudentComboPref, StudentSupervisorPref, Allocation
+from models import db, Student, Supervisor, ComboSeat, StudentPref, Allocation
 from services.allocator import try_run_allocation
 
 api_bp = Blueprint('api', __name__)
 
 
-@api_bp.route('/preferences/combo', methods=['POST'])
+@api_bp.route('/preferences/save', methods=['POST'])
 @login_required
-def save_combo_preferences():
-    """Save student's combo priority list."""
+def save_preferences():
+    """Save student's combined (combo + supervisor) preference list."""
     data = request.get_json()
     if not data or 'preferences' not in data:
         return jsonify({'error': 'Invalid data'}), 400
 
-    # Delete existing combo preferences
-    StudentComboPref.query.filter_by(student_id=current_user.id).delete()
+    # Delete existing preferences
+    StudentPref.query.filter_by(student_id=current_user.id).delete()
 
-    # Insert new preferences
-    for item in data['preferences']:
-        pref = StudentComboPref(
+    # Insert new preferences (position in list = priority)
+    for idx, item in enumerate(data['preferences']):
+        pref = StudentPref(
             student_id=current_user.id,
             major_code=item['major'].upper(),
             minor_code=item['minor'].upper(),
-            priority=item['priority']
-        )
-        db.session.add(pref)
-
-    db.session.commit()
-    alloc_result = try_run_allocation()
-    msg = 'Combo preferences saved!'
-    if alloc_result.get('reason') == 'cooldown':
-        msg += f' Allocation will update in {alloc_result["cooldown_remaining"]}s (cooldown).'
-    elif alloc_result.get('success'):
-        msg += ' Allocation updated.'
-    return jsonify({'success': True, 'message': msg})
-
-
-@api_bp.route('/preferences/supervisor', methods=['POST'])
-@login_required
-def save_supervisor_preferences():
-    """Save student's supervisor priority list for a given major."""
-    data = request.get_json()
-    if not data or 'preferences' not in data or 'major_code' not in data:
-        return jsonify({'error': 'Invalid data'}), 400
-
-    major_code = data['major_code'].upper()
-
-    # Delete existing supervisor preferences for this major
-    StudentSupervisorPref.query.filter_by(student_id=current_user.id, major_code=major_code).delete()
-
-    # Insert new preferences
-    for item in data['preferences']:
-        pref = StudentSupervisorPref(
-            student_id=current_user.id,
             supervisor_id=item['supervisor_id'],
-            major_code=major_code,
-            priority=item['priority']
+            priority=idx + 1,
         )
         db.session.add(pref)
 
     db.session.commit()
     alloc_result = try_run_allocation()
-    msg = 'Supervisor preferences saved!'
+    msg = 'Preferences saved!'
     if alloc_result.get('reason') == 'cooldown':
         msg += f' Allocation will update in {alloc_result["cooldown_remaining"]}s (cooldown).'
     elif alloc_result.get('success'):

@@ -115,138 +115,81 @@
         </div>
     </div>
 
-    <!-- Section B: Preference Selection -->
+    <!-- Hidden supervisor data for JS -->
+    <script id="supervisor-data" type="application/json">{{ all_supervisors | tojson }}</script>
+
+    <!-- Section B: Combined Preference Selection (Combo + Supervisor) -->
     <div class="bg-white rounded-xl shadow-md p-6">
         <h2 class="font-bold text-lg text-buet-blue mb-4">⚙️ My Preferences</h2>
+        <p class="text-xs text-gray-400 mb-4">
+            Add rows for each (combo + supervisor) pair you prefer, in priority order (top = highest priority).
+            Drag rows to reorder. Only pairs you add will be considered during allocation.
+        </p>
 
-        <!-- Combo Priority -->
-        <div class="mb-8">
-            <h3 class="font-semibold text-gray-700 mb-3">📋 Combo Priority List</h3>
-            <p class="text-xs text-gray-400 mb-3">Drag the combos to reorder them by priority (top = highest priority). Unranked combos get equal-lowest priority automatically.</p>
+        {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
+        {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
 
-            {# Color mapping: each major gets a base color; each minor gets a shade #}
-            {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
-            {% set minor_shades = {'S': '400', 'T': '500', 'E': '600', 'G': '700'} %}
-            {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
-
-            <div id="combo-preference-list" class="space-y-1">
-                {% set pref_map = {} %}
-                {% for p in combo_prefs %}
-                    {% set _ = pref_map.update({(p.major_code ~ p.minor_code): p.priority}) %}
-                {% endfor %}
-
-                {% for c in combos %}
-                {% set key = c.major_code ~ c.minor_code %}
-                {% set saved_priority = pref_map.get(key, 0) %}
-                {% set major_clr = major_colors[c.major_code] %}
-                {% set minor_shade = minor_shades[c.minor_code] %}
-                {% set bg_clr = major_clr ~ '-50' %}
-                {% set border_clr = major_clr ~ '-400' %}
-                {% set badge_clr = major_clr ~ '-' ~ minor_shade %}
-                {% set text_clr = major_clr ~ '-700' %}
-                {% set minor_dot_clr = major_clr ~ '-' ~ minor_shade %}
-                {% set major_name = major_names[c.major_code] %}
-                {% set minor_name = major_names[c.minor_code] %}
-                <div class="combo-row flex items-center gap-3 rounded-lg px-4 py-3 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-{{ bg_clr }} border-{{ border_clr }}"
-                     draggable="true"
-                     data-major="{{ c.major_code }}"
-                     data-minor="{{ c.minor_code }}"
-                     data-default-priority="{{ saved_priority }}">
-                    <span class="text-{{ text_clr }} text-lg font-bold drag-handle opacity-60">⠿</span>
-                    <span class="priority-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-{{ badge_clr }}">
-                        {{ loop.index }}
-                    </span>
-                    <span class="font-mono font-bold w-14 text-{{ text_clr }}">{{ c.major_code }}{{ c.minor_code }}</span>
-                    <span class="text-xs flex-1 text-{{ text_clr }}">
-                        {{ major_name }} <span class="text-gray-400">→</span> {{ minor_name }}
-                    </span>
-                    <span class="w-3 h-3 rounded-full inline-block bg-{{ minor_dot_clr }} shrink-0"></span>
-                    <span class="text-xs text-gray-400 italic">drag</span>
-                </div>
-                {% endfor %}
+        <!-- Add Row Controls -->
+        <div class="flex flex-wrap gap-3 items-end mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Combo</label>
+                <select id="new-combo-select"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-buet-blue outline-none">
+                    <option value="">— Select combo —</option>
+                    {% for c in combos %}
+                    <option value="{{ c.major_code }}{{ c.minor_code }}"
+                            data-major="{{ c.major_code }}" data-minor="{{ c.minor_code }}">
+                        {{ c.major_code }}{{ c.minor_code }} — {{ major_names[c.major_code] }} → {{ major_names[c.minor_code] }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-
-            <button onclick="saveComboPreferences()"
-                    class="mt-4 px-5 py-2 bg-buet-blue text-white rounded-lg hover:bg-blue-900 transition text-sm font-medium">
-                💾 Save Combo Preferences
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Supervisor</label>
+                <select id="new-supervisor-select"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-buet-blue outline-none">
+                    <option value="">— Select combo first —</option>
+                </select>
+            </div>
+            <button onclick="addPreferenceRow()"
+                    class="px-4 py-2 bg-buet-blue text-white rounded-lg hover:bg-blue-900 transition text-sm font-medium">
+                ➕ Add
             </button>
-            <span id="combo-save-status" class="ml-3 text-sm text-green-600 hidden">✓ Saved!</span>
         </div>
 
-        <!-- Supervisor Priority per Major -->
-        <div>
-            <h3 class="font-semibold text-gray-700 mb-3">👤 Supervisor Priority per Major</h3>
-            <p class="text-xs text-gray-400 mb-3">Click a tab to select a major, then drag supervisors to rank them (top = highest priority).</p>
-
-            {% set major_colors = {'S': 'blue', 'T': 'emerald', 'E': 'violet', 'G': 'amber'} %}
-            {% set major_names = {'S': 'Structure', 'T': 'Transport', 'E': 'Environment', 'G': 'Geotech'} %}
-            {% set major_order = ['S', 'T', 'E', 'G'] %}
-
-            {# ─── Tab Bar ─── #}
-            <div class="flex gap-1 mb-4 border-b border-gray-200 pb-1" id="supervisor-tabs">
-                {% for m in major_order %}
-                {% set mclr = major_colors[m] %}
-                {% set active_bg = mclr ~ '-500' %}
-                {% set active_text = 'white' %}
-                {% set inactive_bg = 'gray-100' %}
-                {% set inactive_text = 'gray-600' %}
-                <button class="sup-tab px-5 py-2 rounded-t-lg text-sm font-medium transition cursor-pointer
-                               bg-{{ inactive_bg }} text-{{ inactive_text }} hover:bg-{{ mclr }}-100"
-                        data-major="{{ m }}"
-                        onclick="switchSupervisorTab('{{ m }}')">
-                    {{ m }} — {{ major_names[m] }}
-                </button>
-                {% endfor %}
+        <!-- Preference List (draggable) -->
+        <div id="preference-list" class="space-y-1 min-h-[60px]">
+            {% for p in student_prefs %}
+            {% set mclr = major_colors[p.major_code] %}
+            {% set sup_name = p.supervisor.name if p.supervisor else 'Unknown' %}
+            <div class="pref-row flex items-center gap-3 rounded-lg px-4 py-3 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-white border-{{ mclr }}-400"
+                 draggable="true"
+                 data-major="{{ p.major_code }}"
+                 data-minor="{{ p.minor_code }}"
+                 data-supervisor-id="{{ p.supervisor_id }}">
+                <span class="text-gray-400 text-lg font-bold drag-handle">⠿</span>
+                <span class="pref-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-{{ mclr }}-600">
+                    {{ loop.index }}
+                </span>
+                <span class="font-mono font-bold w-14 text-{{ mclr }}-700">{{ p.major_code }}{{ p.minor_code }}</span>
+                <span class="text-xs text-gray-500 flex-1">{{ major_names[p.major_code] }} → {{ major_names[p.minor_code] }}</span>
+                <span class="text-sm font-medium text-{{ mclr }}-700">{{ sup_name }}</span>
+                <button onclick="this.closest('.pref-row').remove(); renumberPrefBadges();"
+                        class="text-red-400 hover:text-red-600 text-lg transition ml-2">✕</button>
             </div>
-
-            {# ─── Supervisor Lists (one per major, only active tab visible) ─── #}
-            {% for m in major_order %}
-            {% set sups = supervisors_by_major.get(m, []) %}
-            {% set mclr = major_colors[m] %}
-            {% set sup_bg = mclr ~ '-50' %}
-            {% set sup_border = mclr ~ '-200' %}
-            {% set sup_heading = mclr ~ '-700' %}
-            <div class="sup-panel" id="sup-panel-{{ m }}"
-                 data-major="{{ m }}"
-                 style="display: {% if loop.first %}block{% else %}none{% endif %};">
-
-                {% if sups %}
-                <div class="p-4 border rounded-lg bg-{{ sup_bg }} border-{{ sup_border }}">
-                    <div class="supervisor-list space-y-1" id="supervisor-list-{{ m }}">
-                        {% set pref_sup_ids = sup_prefs | selectattr('major_code', 'equalto', m) | map(attribute='supervisor_id') | list %}
-                        {% for sup in sups %}
-                        {% set saved_priority = namespace(found=false) %}
-                        {% for p in sup_prefs %}
-                            {% if p.supervisor_id == sup.id and p.major_code == m %}
-                                {% set saved_priority = p.priority %}
-                            {% endif %}
-                        {% endfor %}
-                        <div class="supervisor-row flex items-center gap-3 rounded-lg px-4 py-2.5 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-white border-{{ mclr }}-400"
-                             draggable="true"
-                             data-supervisor-id="{{ sup.id }}"
-                             data-major="{{ m }}">
-                            <span class="text-{{ sup_heading }} text-lg font-bold drag-handle opacity-60">⠿</span>
-                            <span class="sup-priority-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-{{ mclr }}-500">
-                                {{ loop.index }}
-                            </span>
-                            <span class="font-medium text-{{ sup_heading }} w-44">{{ sup.name }}</span>
-                            <span class="text-xs text-gray-400">({{ sup.seats }} seats)</span>
-                            <span class="text-xs text-gray-400 italic ml-auto">drag</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    <button onclick="saveSupervisorPreferences('{{ m }}')"
-                            class="mt-3 px-4 py-1.5 text-white rounded-lg hover:opacity-90 transition text-xs font-medium bg-{{ mclr }}-600">
-                        💾 Save ({{ m }})
-                    </button>
-                    <span id="sup-save-status-{{ m }}" class="ml-3 text-sm text-green-600 hidden">✓ Saved!</span>
-                </div>
-                {% else %}
-                <p class="text-gray-400 text-sm py-4">No supervisors for {{ major_names[m] }} yet. Ask admin to add them.</p>
-                {% endif %}
+            {% else %}
+            <div id="empty-message" class="text-center py-8 text-gray-400">
+                No preferences added yet. Use the form above to add combo + supervisor pairs.
             </div>
             {% endfor %}
+        </div>
+
+        <div class="flex items-center gap-3 mt-4">
+            <button onclick="savePreferences()"
+                    class="px-5 py-2 bg-buet-blue text-white rounded-lg hover:bg-blue-900 transition text-sm font-medium">
+                💾 Save Preferences
+            </button>
+            <span id="save-status" class="text-sm text-green-600 hidden">✓ Saved!</span>
         </div>
     </div>
 

@@ -1,32 +1,138 @@
 /* ================================================================
-   Drag-and-Drop (shared for combos and supervisors)
+   Combined (Combo + Supervisor) Preference System
    ================================================================ */
 
 let draggedRow = null;
 
-/**
- * Enable drag-and-drop on all rows inside a container.
- * @param {string|Element} container — container element or its id
- * @param {string} rowSelector — CSS selector for draggable rows
- * @param {string} badgeSelector — CSS selector for the priority badge inside each row
- * @param {string} highlightColor — ring/border color class for visual feedback
- */
-function enableDragDrop(container, rowSelector, badgeSelector, highlightColor) {
-    const list = typeof container === 'string'
-        ? document.getElementById(container)
-        : container;
-    if (!list) return;
-
-    const refreshRows = () => {
-        list.querySelectorAll(rowSelector).forEach(row => attachDragEvents(row, list, rowSelector, badgeSelector, highlightColor));
-    };
-    refreshRows();
+/* ─── Helper: major color ─── */
+function majorColor(m) {
+    return { S: 'blue', T: 'emerald', E: 'violet', G: 'amber' }[m] || 'gray';
 }
 
+function majorName(m) {
+    return { S: 'Structure', T: 'Transport', E: 'Environment', G: 'Geotech' }[m] || m;
+}
+
+/* ─── Supervisor dropdown filtering ─── */
+document.addEventListener('DOMContentLoaded', function () {
+    const comboSelect = document.getElementById('new-combo-select');
+    const supSelect = document.getElementById('new-supervisor-select');
+    if (!comboSelect || !supSelect) return;
+
+    // Load supervisor data from hidden JSON
+    const scriptTag = document.getElementById('supervisor-data');
+    if (scriptTag) {
+        try {
+            window._allSupervisors = JSON.parse(scriptTag.textContent);
+        } catch (e) {
+            window._allSupervisors = [];
+        }
+    }
+
+    comboSelect.addEventListener('change', function () {
+        updateSupDropdown();
+    });
+
+    // Init drag-drop and badge numbering on existing rows
+    initPrefListDragDrop();
+    renumberPrefBadges();
+});
+
+function updateSupDropdown() {
+    const comboSelect = document.getElementById('new-combo-select');
+    const supSelect = document.getElementById('new-supervisor-select');
+    if (!comboSelect || !supSelect) return;
+
+    const val = comboSelect.value;
+    supSelect.innerHTML = '<option value="">— Select supervisor —</option>';
+
+    if (!val || val.length < 2) return;
+
+    const major = val[0];
+    const supData = window._allSupervisors || [];
+    const filtered = supData.filter(s => s.major_code === major);
+
+    filtered.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name + ' (' + s.seats + ' seats)';
+        supSelect.appendChild(opt);
+    });
+}
+
+/* ─── Add preference row ─── */
+function addPreferenceRow() {
+    const comboSelect = document.getElementById('new-combo-select');
+    const supSelect = document.getElementById('new-supervisor-select');
+    const list = document.getElementById('preference-list');
+    if (!comboSelect || !supSelect || !list) return;
+
+    const comboVal = comboSelect.value;
+    const supVal = supSelect.value;
+    if (!comboVal || !supVal) {
+        alert('Please select both a combo and a supervisor.');
+        return;
+    }
+
+    const major = comboVal[0];
+    const minor = comboVal[1];
+    const supId = parseInt(supVal);
+    const supName = supSelect.options[supSelect.selectedIndex].textContent;
+    const mclr = majorColor(major);
+
+    // Remove empty message
+    const emptyMsg = document.getElementById('empty-message');
+    if (emptyMsg) emptyMsg.remove();
+
+    // Check for duplicates
+    const existing = Array.from(list.querySelectorAll('.pref-row'));
+    const isDuplicate = existing.some(row =>
+        row.dataset.major === major &&
+        row.dataset.minor === minor &&
+        parseInt(row.dataset.supervisorId) === supId
+    );
+    if (isDuplicate) {
+        alert('This exact combo + supervisor pair is already in your list.');
+        return;
+    }
+
+    const div = document.createElement('div');
+    div.className = `pref-row flex items-center gap-3 rounded-lg px-4 py-3 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-white border-${mclr}-400`;
+    div.draggable = true;
+    div.dataset.major = major;
+    div.dataset.minor = minor;
+    div.dataset.supervisorId = supId;
+    div.innerHTML = `
+        <span class="text-gray-400 text-lg font-bold drag-handle">⠿</span>
+        <span class="pref-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-${mclr}-600">${existing.length + 1}</span>
+        <span class="font-mono font-bold w-14 text-${mclr}-700">${comboVal}</span>
+        <span class="text-xs text-gray-500 flex-1">${majorName(major)} → ${majorName(minor)}</span>
+        <span class="text-sm font-medium text-${mclr}-700">${supName}</span>
+        <button onclick="this.closest('.pref-row').remove(); renumberPrefBadges();"
+                class="text-red-400 hover:text-red-600 text-lg transition ml-2">✕</button>
+    `;
+
+    list.appendChild(div);
+
+    // Attach drag events
+    attachDragEvents(div, list, '.pref-row', '.pref-badge', 'ring-gray-400');
+    renumberPrefBadges();
+
+    // Reset selects
+    comboSelect.value = '';
+    supSelect.innerHTML = '<option value="">— Select combo first —</option>';
+}
+
+/* ─── Drag-and-Drop ─── */
+function initPrefListDragDrop() {
+    const list = document.getElementById('preference-list');
+    if (!list) return;
+    list.querySelectorAll('.pref-row').forEach(row => {
+        attachDragEvents(row, list, '.pref-row', '.pref-badge', 'ring-gray-400');
+    });
+}
 
 function attachDragEvents(row, list, rowSelector, badgeSelector, highlightColor) {
-    // Remove old listeners by cloning (simplest approach for re-init safety)
-    // Instead, we use a flag to avoid double-binding
     if (row._dragInitialized) return;
     row._dragInitialized = true;
 
@@ -39,19 +145,13 @@ function attachDragEvents(row, list, rowSelector, badgeSelector, highlightColor)
 
     row.addEventListener('dragend', function () {
         this.classList.remove('opacity-40', 'ring-2', highlightColor);
-        list.querySelectorAll(rowSelector).forEach(r => {
-            r.classList.remove('ring-2', highlightColor);
-        });
+        list.querySelectorAll(rowSelector).forEach(r => r.classList.remove('ring-2', highlightColor));
         draggedRow = null;
     });
 
     row.addEventListener('dragover', function (e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-    });
-
-    row.addEventListener('dragleave', function () {
-        // no-op
     });
 
     row.addEventListener('drop', function (e) {
@@ -67,44 +167,51 @@ function attachDragEvents(row, list, rowSelector, badgeSelector, highlightColor)
         } else {
             this.insertAdjacentElement('beforebegin', draggedRow);
         }
-
-        // Renumber badges in this container
-        renumberBadges(list, rowSelector, badgeSelector);
+        renumberPrefBadges();
     });
 }
 
-function renumberBadges(list, rowSelector, badgeSelector) {
-    const rows = list.querySelectorAll(rowSelector);
+function renumberPrefBadges() {
+    const list = document.getElementById('preference-list');
+    if (!list) return;
+    const rows = list.querySelectorAll('.pref-row');
     rows.forEach((row, idx) => {
-        const badge = row.querySelector(badgeSelector);
+        const badge = row.querySelector('.pref-badge');
         if (badge) badge.textContent = idx + 1;
     });
+    // Show/hide empty message
+    let emptyMsg = document.getElementById('empty-message');
+    if (rows.length === 0) {
+        if (!emptyMsg) {
+            emptyMsg = document.createElement('div');
+            emptyMsg.id = 'empty-message';
+            emptyMsg.className = 'text-center py-8 text-gray-400';
+            emptyMsg.textContent = 'No preferences added yet. Use the form above to add combo + supervisor pairs.';
+            list.appendChild(emptyMsg);
+        }
+    } else {
+        if (emptyMsg) emptyMsg.remove();
+    }
 }
 
-/* ================================================================
-   Combo Preferences
-   ================================================================ */
-
-function initComboDragDrop() {
-    enableDragDrop('combo-preference-list', '.combo-row', '.priority-badge', 'ring-buet-blue');
-}
-
-function saveComboPreferences() {
-    const list = document.getElementById('combo-preference-list');
+/* ─── Save ─── */
+function savePreferences() {
+    const list = document.getElementById('preference-list');
     if (!list) return;
 
-    const rows = list.querySelectorAll('.combo-row');
+    const rows = list.querySelectorAll('.pref-row');
     const preferences = [];
 
     rows.forEach((row, idx) => {
         preferences.push({
             major: row.dataset.major,
             minor: row.dataset.minor,
+            supervisor_id: parseInt(row.dataset.supervisorId),
             priority: idx + 1
         });
     });
 
-    fetch('/api/preferences/combo', {
+    fetch('/api/preferences/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preferences })
@@ -112,7 +219,7 @@ function saveComboPreferences() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            const status = document.getElementById('combo-save-status');
+            const status = document.getElementById('save-status');
             status.classList.remove('hidden');
             status.textContent = '✓ Saved! Allocation updated.';
             setTimeout(() => status.classList.add('hidden'), 3000);
@@ -124,84 +231,3 @@ function saveComboPreferences() {
         alert('Network error: ' + err);
     });
 }
-
-/* ================================================================
-   Supervisor Tab Switching
-   ================================================================ */
-
-function switchSupervisorTab(majorCode) {
-    // Hide all panels
-    document.querySelectorAll('.sup-panel').forEach(p => p.style.display = 'none');
-
-    // Show selected panel
-    const panel = document.getElementById('sup-panel-' + majorCode);
-    if (panel) panel.style.display = 'block';
-
-    // Update tab styles
-    document.querySelectorAll('.sup-tab').forEach(tab => {
-        const m = tab.dataset.major;
-        const clr = getMajorColor(m);
-        if (m === majorCode) {
-            tab.className = `sup-tab px-5 py-2 rounded-t-lg text-sm font-medium transition cursor-pointer bg-${clr}-500 text-white`;
-        } else {
-            tab.className = `sup-tab px-5 py-2 rounded-t-lg text-sm font-medium transition cursor-pointer bg-gray-100 text-gray-600 hover:bg-${clr}-100`;
-        }
-    });
-}
-
-function getMajorColor(major) {
-    return { S: 'blue', T: 'emerald', E: 'violet', G: 'amber' }[major] || 'gray';
-}
-
-/* ================================================================
-   Supervisor Preferences (drag-drop based)
-   ================================================================ */
-
-function initSupervisorDragDrop() {
-    document.querySelectorAll('.supervisor-list').forEach(list => {
-        enableDragDrop(list, '.supervisor-row', '.sup-priority-badge', 'ring-gray-400');
-    });
-}
-
-function saveSupervisorPreferences(majorCode) {
-    const list = document.getElementById('supervisor-list-' + majorCode);
-    if (!list) return;
-
-    const rows = list.querySelectorAll('.supervisor-row');
-    const preferences = [];
-
-    rows.forEach((row, idx) => {
-        preferences.push({
-            supervisor_id: parseInt(row.dataset.supervisorId),
-            priority: idx + 1
-        });
-    });
-
-    fetch('/api/preferences/supervisor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ major_code: majorCode, preferences })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            const status = document.getElementById('sup-save-status-' + majorCode);
-            status.classList.remove('hidden');
-            status.textContent = '✓ Saved! Allocation updated.';
-            setTimeout(() => status.classList.add('hidden'), 3000);
-        } else {
-            alert('Error: ' + (data.error || 'Failed to save'));
-        }
-    })
-    .catch(err => {
-        alert('Network error: ' + err);
-    });
-}
-
-/* ================================================================
-   Init on page load
-   ================================================================ */
-document.addEventListener('DOMContentLoaded', function () {
-    initComboDragDrop();
-    initSupervisorDragDrop();
-});

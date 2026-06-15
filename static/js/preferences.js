@@ -194,6 +194,51 @@ function renumberPrefBadges() {
     }
 }
 
+/* ─── Add available option to preferences ─── */
+function addOptionToPrefs(major, minor, supervisorId, supervisorName) {
+    const list = document.getElementById('preference-list');
+    if (!list) return;
+
+    const comboVal = major + minor;
+    const mclr = majorColor(major);
+
+    // Check for duplicates
+    const existing = Array.from(list.querySelectorAll('.pref-row'));
+    const isDuplicate = existing.some(row =>
+        row.dataset.major === major &&
+        row.dataset.minor === minor &&
+        parseInt(row.dataset.supervisorId) === supervisorId
+    );
+    if (isDuplicate) {
+        alert('This pair is already in your preference list.');
+        return;
+    }
+
+    // Remove empty message
+    const emptyMsg = document.getElementById('empty-message');
+    if (emptyMsg) emptyMsg.remove();
+
+    const div = document.createElement('div');
+    div.className = `pref-row flex items-center gap-3 rounded-lg px-4 py-3 border-l-4 shadow-sm cursor-grab active:cursor-grabbing select-none transition-shadow hover:shadow-md bg-white border-${mclr}-400`;
+    div.draggable = true;
+    div.dataset.major = major;
+    div.dataset.minor = minor;
+    div.dataset.supervisorId = supervisorId;
+    div.innerHTML = `
+        <span class="text-gray-400 text-lg font-bold drag-handle">⠿</span>
+        <span class="pref-badge w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 bg-${mclr}-600">${existing.length + 1}</span>
+        <span class="font-mono font-bold w-14 text-${mclr}-700">${comboVal}</span>
+        <span class="text-xs text-gray-500 flex-1">${majorName(major)} → ${majorName(minor)}</span>
+        <span class="text-sm font-medium text-${mclr}-700">${supervisorName}</span>
+        <button onclick="this.closest('.pref-row').remove(); renumberPrefBadges();"
+                class="text-red-400 hover:text-red-600 text-lg transition ml-2">✕</button>
+    `;
+
+    list.appendChild(div);
+    attachDragEvents(div, list, '.pref-row', '.pref-badge', 'ring-gray-400');
+    renumberPrefBadges();
+}
+
 /* ─── Save ─── */
 function savePreferences() {
     const list = document.getElementById('preference-list');

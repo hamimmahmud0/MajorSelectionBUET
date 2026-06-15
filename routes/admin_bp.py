@@ -47,6 +47,15 @@ def dashboard():
     from services.allocator import is_allocation_on_cooldown, seconds_since_last_allocation, \
         ALLOCATION_COOLDOWN, last_allocation_time
     on_cooldown = is_allocation_on_cooldown()
+
+    # Compute unallocated students (submitted but no allocation)
+    allocated_ids = {a.student_id for a in Allocation.query.with_entities(Allocation.student_id).all()}
+    submitted_ids = set()
+    for row in db.session.query(StudentPref.student_id).distinct().all():
+        submitted_ids.add(row.student_id)
+    unallocated_ids = submitted_ids - allocated_ids
+    unallocated_students = Student.query.filter(Student.id.in_(unallocated_ids)).order_by(Student.rank).all()
+
     stats = {
         'students': Student.query.count(),
         'supervisors': Supervisor.query.count(),
@@ -61,8 +70,9 @@ def dashboard():
         'cooldown_active': on_cooldown,
         'cooldown_remaining': round(ALLOCATION_COOLDOWN - seconds_since_last_allocation(), 1) if on_cooldown else 0,
         'cooldown_total': ALLOCATION_COOLDOWN,
+        'unallocated_count': len(unallocated_students),
     }
-    return render_template('admin/dashboard.html', stats=stats)
+    return render_template('admin/dashboard.html', stats=stats, unallocated_students=unallocated_students)
 
 
 # ─── Supervisor Management (List One) ───

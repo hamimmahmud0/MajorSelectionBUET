@@ -25,6 +25,8 @@ class Student(UserMixin, db.Model):
     rank = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.now())
 
+    student_prefs = db.relationship('StudentPref', backref='student_obj', lazy='dynamic')
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

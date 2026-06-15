@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from models import db, Student, Supervisor, ComboSeat, StudentPref, Allocation
-from services.allocator import get_submission_stats
+from services.allocator import get_submission_stats, get_available_options_for_student
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -41,10 +41,22 @@ def index():
         .all()
     )
 
+    # Determine if this student submitted but wasn't allocated
+    has_submitted = len(student_prefs) > 0
+    unallocated = has_submitted and allocation is None
+
+    # Available options for unallocated students
+    available_options = []
+    if unallocated:
+        available_options = get_available_options_for_student(current_user.id)
+
     return render_template('dashboard/index.html',
                            allocation=allocation,
                            combos=combos,
                            all_supervisors=all_supervisors,
                            student_prefs=student_prefs,
                            all_allocations=all_allocations,
-                           sub_stats=sub_stats)
+                           sub_stats=sub_stats,
+                           has_submitted=has_submitted,
+                           unallocated=unallocated,
+                           available_options=available_options)

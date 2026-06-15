@@ -113,6 +113,17 @@
                 </p>
             </div>
         </div>
+
+        {% if unallocated and has_submitted %}
+        <!-- Unallocated Warning -->
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-red-700 font-medium">⚠️ Your preferences could not be fully met.</p>
+            <p class="text-sm text-red-600 mt-1">
+                All the (combo + supervisor) pairs you selected have been taken by higher-ranked students.
+                Update your preferences below to include options that still have available seats.
+            </p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Hidden supervisor data for JS -->
@@ -192,6 +203,50 @@
             <span id="save-status" class="text-sm text-green-600 hidden">✓ Saved!</span>
         </div>
     </div>
+
+    {% if unallocated and has_submitted and available_options %}
+    <!-- Available Options for Unallocated Students -->
+    <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
+        <h2 class="font-bold text-lg text-green-700 mb-2">✅ Available Options With Seats</h2>
+        <p class="text-xs text-gray-500 mb-3">
+            These (combo + supervisor) pairs still have open seats. Add them to your preferences above,
+            then click Save to try allocation again.
+        </p>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-green-600 text-white">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Combo</th>
+                        <th class="px-3 py-2 text-left">Supervisor</th>
+                        <th class="px-3 py-2 text-center">Combo Seats Left</th>
+                        <th class="px-3 py-2 text-center">Sup. Seats Left</th>
+                        <th class="px-3 py-2 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for opt in available_options %}
+                    {% set mclr = major_colors.get(opt.major_code, 'gray') %}
+                    <tr class="hover:bg-green-50">
+                        <td class="px-3 py-2">
+                            <span class="font-mono font-bold text-{{ mclr }}-700">{{ opt.combo_label }}</span>
+                            <span class="text-xs text-gray-500 ml-1">{{ major_names[opt.major_code] }} → {{ major_names[opt.minor_code] }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-{{ mclr }}-700">{{ opt.supervisor_name }}</td>
+                        <td class="px-3 py-2 text-center font-medium">{{ opt.combo_seats_remaining }}</td>
+                        <td class="px-3 py-2 text-center font-medium">{{ opt.sup_seats_remaining }}</td>
+                        <td class="px-3 py-2 text-center">
+                            <button onclick="addOptionToPrefs('{{ opt.major_code }}', '{{ opt.minor_code }}', {{ opt.supervisor_id }}, '{{ opt.supervisor_name }}')"
+                                    class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs transition">
+                                ➕ Add
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- No need to show this
     <div class="bg-white rounded-xl shadow-md p-6">

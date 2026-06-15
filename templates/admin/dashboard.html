@@ -109,6 +109,37 @@
                 </form>
             </div>
         </div>
+
+        <!-- Unallocated Students Table (only visible when there are any) -->
+        {% if unallocated_students %}
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6 border-l-4 border-red-500">
+            <h2 class="font-bold text-lg text-red-700 mb-2">⚠️ Unallocated Students</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                These students submitted preferences but could not be placed — all their preferred options were full.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-red-600 text-white">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Student ID</th>
+                            <th class="px-4 py-2 text-center">Rank</th>
+                            <th class="px-4 py-2 text-left">Submitted Prefs</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for s in unallocated_students %}
+                        {% set pref_count = s.student_prefs.count() %}
+                        <tr class="hover:bg-red-50">
+                            <td class="px-4 py-2 font-mono">{{ s.id }}</td>
+                            <td class="px-4 py-2 text-center font-medium">{{ s.rank }}</td>
+                            <td class="px-4 py-2">{{ pref_count }} preference(s)</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </main>
 </div>
 {% endblock %}

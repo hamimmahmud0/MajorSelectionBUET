@@ -71,7 +71,7 @@ def login():
                 return redirect(url_for('dashboard.index'))
             else:
                 flash('Incorrect password. Please try again.', 'error')
-                return render_template('login.html', student_id=student_id)
+                return render_template('login.html', student_id=student_id, is_existing=True)
 
     # ─── Step 1: Student ID submitted (or fresh GET) ───
     if request.method == 'POST':

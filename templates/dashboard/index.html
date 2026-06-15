@@ -5,7 +5,7 @@
     <h1 class="text-2xl font-bold text-buet-blue">🎓 Student Dashboard</h1>
 
     <!-- Registration & Submission Status -->
-    {% set student_has_submitted = combo_prefs|length > 0 %}
+    {% set student_has_submitted = student_prefs|length > 0 %}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
         <div class="bg-white rounded-xl shadow-md p-4 border-l-4
             {% if student_has_submitted %}border-green-500{% else %}border-gray-400{% endif %}">
@@ -193,7 +193,7 @@
         </div>
     </div>
 
-    <!--
+    <!-- No need to show this
     <div class="bg-white rounded-xl shadow-md p-6">
         <h2 class="font-bold text-lg text-buet-blue mb-4">📊 Allocation Results</h2>
         

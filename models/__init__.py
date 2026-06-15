@@ -105,3 +105,10 @@ class Allocation(db.Model):
 
     student = db.relationship('Student', backref='allocation', uselist=False)
     supervisor = db.relationship('Supervisor', backref='allocations')
+
+
+class AllocationRun(db.Model):
+    """Singleton marker for the latest successful allocation run."""
+    __tablename__ = 'allocation_run'
+    id = db.Column(db.Integer, primary_key=True, default=1)
+    updated_at = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())

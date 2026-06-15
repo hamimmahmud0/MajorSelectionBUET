@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 from models import db, Student, Supervisor, ComboSeat, StudentPref, Allocation
-from services.allocator import get_submission_stats, get_available_options_for_student
+from services.allocator import get_submission_stats, get_available_options_for_student, has_allocation_run
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -42,8 +42,10 @@ def index():
     )
 
     # Determine if this student submitted but wasn't allocated
+    # Only show unallocated warning if allocation has actually run.
     has_submitted = len(student_prefs) > 0
-    unallocated = has_submitted and allocation is None
+    allocation_has_run = has_allocation_run()
+    unallocated = has_submitted and allocation is None and allocation_has_run
 
     # Available options for unallocated students
     available_options = []

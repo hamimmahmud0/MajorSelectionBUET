@@ -7,7 +7,7 @@ available pair from their preference list.
 """
 
 import time
-from models import db, Student, Supervisor, ComboSeat, StudentPref, Allocation
+from models import db, Student, Supervisor, ComboSeat, StudentPref, Allocation, AllocationRun
 
 # Minimum number of students who must submit preferences before allocation runs
 MIN_PREFERENCE_THRESHOLD = 50
@@ -46,6 +46,23 @@ def get_submission_stats():
         'threshold': MIN_PREFERENCE_THRESHOLD,
         'can_run': submitted >= MIN_PREFERENCE_THRESHOLD,
     }
+
+
+def has_allocation_run():
+    """Return True once allocation has completed for the current data set."""
+    return db.session.get(AllocationRun, 1) is not None
+
+
+def mark_allocation_run():
+    run = db.session.get(AllocationRun, 1)
+    if run is None:
+        db.session.add(AllocationRun(id=1))
+    else:
+        run.updated_at = db.func.now()
+
+
+def clear_allocation_run():
+    AllocationRun.query.delete()
 
 
 def get_available_options_for_student(student_id):
@@ -143,6 +160,7 @@ def run_allocation():
         if not assigned and prefs:
             unallocated_student_ids.append(student.id)
 
+    mark_allocation_run()
     db.session.commit()
     return {'ran': True, 'success': True, 'allocated': allocated_count,
             'unallocated': len(unallocated_student_ids),

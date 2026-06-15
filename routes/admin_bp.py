@@ -3,7 +3,7 @@ import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, Admin, Student, Supervisor, ComboSeat, StudentPref, Allocation
-from services.allocator import try_run_allocation, get_submission_stats
+from services.allocator import try_run_allocation, get_submission_stats, has_allocation_run, clear_allocation_run
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -48,13 +48,13 @@ def dashboard():
         ALLOCATION_COOLDOWN, last_allocation_time
     on_cooldown = is_allocation_on_cooldown()
 
-    # Compute unallocated students (submitted but no allocation)
-    allocated_ids = {a.student_id for a in Allocation.query.with_entities(Allocation.student_id).all()}
-    submitted_ids = set()
-    for row in db.session.query(StudentPref.student_id).distinct().all():
-        submitted_ids.add(row.student_id)
-    unallocated_ids = submitted_ids - allocated_ids
-    unallocated_students = Student.query.filter(Student.id.in_(unallocated_ids)).order_by(Student.rank).all()
+    allocation_has_run = has_allocation_run()
+    unallocated_students = []
+    if allocation_has_run:
+        allocated_ids = {a.student_id for a in Allocation.query.with_entities(Allocation.student_id).all()}
+        submitted_ids = {row.student_id for row in db.session.query(StudentPref.student_id).distinct().all()}
+        unallocated_ids = submitted_ids - allocated_ids
+        unallocated_students = Student.query.filter(Student.id.in_(unallocated_ids)).order_by(Student.rank).all()
 
     stats = {
         'students': Student.query.count(),
@@ -66,6 +66,7 @@ def dashboard():
         'remaining': sub_stats['remaining'],
         'threshold': sub_stats['threshold'],
         'can_run': sub_stats['can_run'],
+        'allocation_has_run': allocation_has_run,
         'needed': max(0, sub_stats['threshold'] - sub_stats['submitted']),
         'cooldown_active': on_cooldown,
         'cooldown_remaining': round(ALLOCATION_COOLDOWN - seconds_since_last_allocation(), 1) if on_cooldown else 0,
@@ -376,8 +377,10 @@ def generate_demo_prefs():
             flash('Combos and supervisors required. Import them first.', 'error')
             return redirect(url_for('admin.dashboard'))
 
-        # Clear existing
+        # Clear existing preferences and stale allocation results
         StudentPref.query.delete()
+        Allocation.query.delete()
+        clear_allocation_run()
         db.session.commit()
 
         SKIP_COUNT = 15
@@ -436,6 +439,7 @@ def reset_all():
         # Delete in order: child records first, then students
         StudentPref.query.delete()
         Allocation.query.delete()
+        clear_allocation_run()
         Student.query.delete()
         db.session.commit()
         flash('All students, preferences, and allocations have been deleted.', 'success')

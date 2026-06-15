@@ -33,9 +33,7 @@ def login():
        Step 2: Enter password (existing user) or create password (new user).
     """
     if current_user.is_authenticated:
-        if hasattr(current_user, 'rank') or hasattr(current_user, 'student_id'):
-            return redirect(url_for('dashboard.index'))
-        return redirect(url_for('admin.dashboard'))
+        logout_user()
 
     # ─── Step 2: password was submitted ───
     if request.method == 'POST' and request.form.get('password', '').strip():

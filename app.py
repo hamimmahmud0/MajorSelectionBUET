@@ -2,8 +2,9 @@ import csv
 import os
 from pathlib import Path
 from flask import Flask
+from sqlalchemy import inspect, text
 from config import Config
-from models import db, Admin, Supervisor, ComboSeat
+from models import db, Admin, Supervisor, ComboSeat, MigrationState
 from flask_login import LoginManager
 
 login_manager = LoginManager()
@@ -42,10 +43,31 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _ensure_student_registration_state()
         _seed_admin(app)
         _seed_sample_data(app)
 
     return app
+
+
+def _ensure_student_registration_state():
+    """Keep old databases usable after adding explicit student registration state."""
+    inspector = inspect(db.engine)
+    columns = {column['name'] for column in inspector.get_columns('student')}
+    if 'registered' not in columns:
+        db.session.execute(text('ALTER TABLE student ADD COLUMN registered BOOLEAN NOT NULL DEFAULT 0'))
+        db.session.commit()
+
+    marker_key = 'student_registered_backfilled'
+    if db.session.get(MigrationState, marker_key):
+        return
+
+    from models import Student
+    for student in Student.query.all():
+        student.registered = not student.has_default_password()
+
+    db.session.add(MigrationState(key=marker_key))
+    db.session.commit()
 
 
 def _seed_admin(app):

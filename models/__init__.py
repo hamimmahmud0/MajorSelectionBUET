@@ -17,12 +17,12 @@ class Admin(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-
 class Student(UserMixin, db.Model):
     __tablename__ = 'student'
     id = db.Column(db.String(20), primary_key=True)  # e.g., 2104065
     password_hash = db.Column(db.String(256), nullable=False)
     rank = db.Column(db.Integer, nullable=True)
+    registered = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=db.func.now())
 
     student_prefs = db.relationship('StudentPref', backref='student_obj', lazy='dynamic')
@@ -32,6 +32,18 @@ class Student(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def has_default_password(self):
+        return self.check_password(self.id)
+
+    def is_registered(self):
+        return bool(self.registered)
+
+
+class MigrationState(db.Model):
+    __tablename__ = 'migration_state'
+    key = db.Column(db.String(100), primary_key=True)
+    applied_at = db.Column(db.DateTime, default=db.func.now())
 
 
 class Supervisor(db.Model):

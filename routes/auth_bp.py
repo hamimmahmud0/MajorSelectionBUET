@@ -47,15 +47,20 @@ def login():
 
         student = Student.query.get(student_id)
 
-        if not student:
-            # New student — create account
+        if not student or student.has_default_password():
+            # New or pending merit-list student — create account password
             if len(password) < 4:
                 flash('Password must be at least 4 characters.', 'error')
                 return render_template('login.html', student_id=student_id, is_new=True)
+            if password == student_id:
+                flash('Please choose a password different from your Student ID.', 'error')
+                return render_template('login.html', student_id=student_id, is_new=True)
 
-            student = Student(id=student_id)
+            if not student:
+                student = Student(id=student_id)
+                db.session.add(student)
             student.set_password(password)
-            db.session.add(student)
+            student.registered = True
             db.session.commit()
             login_user(student)
             flash('Account created successfully! Welcome.', 'success')
@@ -83,11 +88,11 @@ def login():
 
         student = Student.query.get(student_id)
 
-        if student:
-            # Existing user → go to step 2 (password entry)
+        if student and student.is_registered():
+            # Existing registered user → go to step 2 (password entry)
             return render_template('login.html', student_id=student_id, is_existing=True)
         else:
-            # New user → go to step 2 (create password)
+            # New or pending merit-list user → go to step 2 (create password)
             return render_template('login.html', student_id=student_id, is_new=True)
 
     # Fresh GET — show step 1

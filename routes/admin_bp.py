@@ -56,8 +56,12 @@ def dashboard():
         unallocated_ids = submitted_ids - allocated_ids
         unallocated_students = Student.query.filter(Student.id.in_(unallocated_ids)).order_by(Student.rank).all()
 
+    all_students = Student.query.all()
+    registered_students = [s for s in all_students if s.is_registered()]
+
     stats = {
-        'students': Student.query.count(),
+        'students': len(registered_students),
+        'total_students': len(all_students),
         'supervisors': Supervisor.query.count(),
         'combos': ComboSeat.query.count(),
         'allocated': Allocation.query.count(),
@@ -263,7 +267,8 @@ def merit():
                         student = Student.query.get(student_id)
                         if not student:
                             student = Student(id=student_id)
-                            student.set_password(student_id)  # default password = student_id
+                            student.set_password(student_id)  # pending account placeholder
+                            student.registered = False
                             db.session.add(student)
                         student.rank = rank
                         count += 1
@@ -277,7 +282,8 @@ def merit():
                 student = Student.query.get(student_id)
                 if not student:
                     student = Student(id=student_id)
-                    student.set_password(student_id)
+                    student.set_password(student_id)  # pending account placeholder
+                    student.registered = False
                     db.session.add(student)
                 student.rank = rank
                 db.session.commit()
@@ -319,8 +325,8 @@ def export_merit():
 @admin_bp.route('/students')
 @admin_required
 def students():
-    all_students = Student.query.order_by(Student.id).all()
-    return render_template('admin/students.html', students=all_students)
+    registered_students = [s for s in Student.query.order_by(Student.id).all() if s.is_registered()]
+    return render_template('admin/students.html', students=registered_students)
 
 
 @admin_bp.route('/students/reset-password', methods=['POST'])
@@ -331,6 +337,7 @@ def reset_student_password():
     student = Student.query.get(student_id)
     if student and new_password:
         student.set_password(new_password)
+        student.registered = new_password != student_id
         db.session.commit()
         flash(f'Password for {student_id} reset.', 'success')
     else:

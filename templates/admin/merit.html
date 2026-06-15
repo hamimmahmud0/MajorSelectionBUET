@@ -27,7 +27,7 @@
         <!-- CSV Upload -->
         <div class="bg-white rounded-xl shadow-md p-5 mb-6">
             <h2 class="font-semibold text-buet-blue mb-3">📥 Upload Merit List CSV</h2>
-            <p class="text-xs text-gray-500 mb-3">Format: <code>rank,student_id</code> (one per line). New students will be auto-created with default password (same as Student ID).</p>
+            <p class="text-xs text-gray-500 mb-3">Format: <code>rank,student_id</code> (one per line). New IDs are added as pending students; they create their password on first login.</p>
             <form method="POST" enctype="multipart/form-data" class="flex gap-3 items-end">
                 <input type="hidden" name="action" value="upload_csv">
                 <div>
